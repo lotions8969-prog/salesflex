@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      UserRole @default(MEMBER)
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id])
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  metricValues MetricValue[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     User[]
+  teamMetrics TeamMetric[]
+
+  @@map("teams")
+}
+
+model MetricDefinition {
+  id           String         @id @default(cuid())
+  name         String
+  description  String?
+  unit         String?
+  type         MetricType
+  category     MetricCategory
+  displayOrder Int            @default(0)
+
+  showInRadarChart    Boolean @default(false)
+  showInDashboard     Boolean @default(true)
+  showInProgressBoard Boolean @default(false)
+
+  minValue    Float?
+  maxValue    Float?
+  targetValue Float?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  metricValues MetricValue[]
+  teamMetrics  TeamMetric[]
+
+  @@map("metric_definitions")
+}
+
+enum MetricType {
+  NUMBER
+  RATING_5
+  TEXT
+}
+
+enum MetricCategory {
+  SALES_RESULT
+  BEHAVIOR
+  SKILL
+}
+
+model TeamMetric {
+  id                 String           @id @default(cuid())
+  teamId             String
+  team               Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  metricDefinitionId String
+  metricDefinition   MetricDefinition @relation(fields: [metricDefinitionId], references: [id], onDelete: Cascade)
+  isEnabled          Boolean          @default(true)
+  createdAt          DateTime         @default(now())
+
+  @@unique([teamId, metricDefinitionId])
+  @@map("team_metrics")
+}
+
+model MetricValue {
+  id                 String           @id @default(cuid())
+  userId             String
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metricDefinitionId String
+  metricDefinition   MetricDefinition @relation(fields: [metricDefinitionId], references: [id], onDelete: Cascade)
+
+  numberValue Float?
+  ratingValue Int?
+  textValue   String?
+
+  period     String
+  recordedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  note       String?
+
+  @@unique([userId, metricDefinitionId, period])
+  @@map("metric_values")
+}
