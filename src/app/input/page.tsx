@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Save, Star, AlertCircle } from "lucide-react";
+import { Save, Star, AlertCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -16,6 +16,7 @@ import {
   METRIC_CATEGORY_COLORS,
 } from "@/lib/types";
 import { listMetrics, listValues, upsertValues, seedDemoDataIfEmpty } from "@/lib/localStore";
+import ImportModal from "@/components/ImportModal";
 
 const DEMO_USERS = [
   { id: "user1", name: "田中 健太" },
@@ -52,6 +53,7 @@ export default function InputPage() {
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [selectedUserId, setSelectedUserId] = useState(DEMO_USERS[0].id);
   const [period, setPeriod] = useState(getCurrentPeriod());
+  const [showImport, setShowImport] = useState(false);
 
   const { register, handleSubmit, getValues, reset } = useForm<Record<string, string>>();
 
@@ -104,13 +106,45 @@ export default function InputPage() {
 
   const categoryOrder: MetricCategory[] = ["SALES_RESULT", "BEHAVIOR", "SKILL"];
 
+  function handleImported() {
+    setMetrics(listMetrics());
+    // 現在選択中のユーザーの値を再読み込み
+    const saved = listValues(selectedUserId, period);
+    const newRatings: Record<string, number> = {};
+    const formDefaults: Record<string, string> = {};
+    for (const v of saved) {
+      if (v.ratingValue != null) newRatings[v.metricDefinitionId] = v.ratingValue;
+      if (v.numberValue != null) formDefaults[`metric_${v.metricDefinitionId}`] = String(v.numberValue);
+      if (v.textValue != null) formDefaults[`metric_${v.metricDefinitionId}`] = v.textValue;
+    }
+    setRatings(newRatings);
+    reset(formDefaults);
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">データ入力</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          定義された指標に基づいて、実績データを入力します
-        </p>
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => { handleImported(); setShowImport(false); }}
+        />
+      )}
+
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">データ入力</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            定義された指標に基づいて、実績データを入力します
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowImport(true)}
+          className="flex items-center gap-2 shrink-0 border-blue-300 text-blue-700 hover:bg-blue-50"
+        >
+          <Upload className="h-4 w-4" />
+          CSVをインポート
+        </Button>
       </div>
 
       {metrics.length === 0 && (
