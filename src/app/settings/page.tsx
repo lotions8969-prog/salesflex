@@ -17,6 +17,13 @@ import {
   METRIC_CATEGORY_LABELS,
   METRIC_CATEGORY_COLORS,
 } from "@/lib/types";
+import {
+  listMetrics,
+  createMetric,
+  updateMetric,
+  deleteMetric,
+  seedDemoDataIfEmpty,
+} from "@/lib/localStore";
 
 interface FormData {
   name: string;
@@ -36,7 +43,6 @@ export default function SettingsPage() {
   const [metrics, setMetrics] = useState<MetricDefinition[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const { register, handleSubmit, reset, watch } = useForm<FormData>({
     defaultValues: {
@@ -51,28 +57,34 @@ export default function SettingsPage() {
   const watchedType = watch("type");
 
   useEffect(() => {
-    fetchMetrics();
+    seedDemoDataIfEmpty();
+    setMetrics(listMetrics());
   }, []);
 
-  async function fetchMetrics() {
-    const res = await fetch("/api/metrics");
-    const data = await res.json();
-    setMetrics(data);
-    setLoading(false);
-  }
-
-  async function onSubmit(data: FormData) {
-    const url = editingId ? `/api/metrics/${editingId}` : "/api/metrics";
-    const method = editingId ? "PUT" : "POST";
-    await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+  function onSubmit(data: FormData) {
+    const payload = {
+      name: data.name,
+      description: data.description || null,
+      unit: data.unit || null,
+      type: data.type,
+      category: data.category,
+      displayOrder: 0,
+      showInRadarChart: !!data.showInRadarChart,
+      showInDashboard: !!data.showInDashboard,
+      showInProgressBoard: !!data.showInProgressBoard,
+      minValue: data.minValue ? parseFloat(data.minValue) : null,
+      maxValue: data.maxValue ? parseFloat(data.maxValue) : null,
+      targetValue: data.targetValue ? parseFloat(data.targetValue) : null,
+    };
+    if (editingId) {
+      updateMetric(editingId, payload);
+    } else {
+      createMetric(payload);
+    }
+    setMetrics(listMetrics());
     reset();
     setShowForm(false);
     setEditingId(null);
-    fetchMetrics();
   }
 
   function startEdit(metric: MetricDefinition) {
@@ -93,10 +105,10 @@ export default function SettingsPage() {
     setShowForm(true);
   }
 
-  async function deleteMetric(id: string) {
-    if (!confirm("この指標を無効化しますか？")) return;
-    await fetch(`/api/metrics/${id}`, { method: "DELETE" });
-    fetchMetrics();
+  function handleDelete(id: string) {
+    if (!confirm("この指標を削除しますか？")) return;
+    deleteMetric(id);
+    setMetrics(listMetrics());
   }
 
   const grouped = metrics.reduce<Record<MetricCategory, MetricDefinition[]>>(
@@ -154,19 +166,13 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>単位</Label>
-                  <Input
-                    {...register("unit")}
-                    placeholder="例: %, 件, 万円"
-                  />
+                  <Input {...register("unit")} placeholder="例: %, 件, 万円" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label>説明</Label>
-                <Input
-                  {...register("description")}
-                  placeholder="この指標の説明（任意）"
-                />
+                <Input {...register("description")} placeholder="この指標の説明（任意）" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -209,29 +215,17 @@ export default function SettingsPage() {
                 <p className="text-sm font-medium text-gray-700">表示設定</p>
                 <div className="flex flex-wrap gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      {...register("showInRadarChart")}
-                      className="rounded"
-                    />
+                    <input type="checkbox" {...register("showInRadarChart")} className="rounded" />
                     <BarChart2 className="h-4 w-4 text-purple-500" />
                     <span className="text-sm">レーダーチャートに表示</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      {...register("showInDashboard")}
-                      className="rounded"
-                    />
+                    <input type="checkbox" {...register("showInDashboard")} className="rounded" />
                     <Eye className="h-4 w-4 text-blue-500" />
                     <span className="text-sm">ダッシュボードに表示</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      {...register("showInProgressBoard")}
-                      className="rounded"
-                    />
+                    <input type="checkbox" {...register("showInProgressBoard")} className="rounded" />
                     <TrendingUp className="h-4 w-4 text-green-500" />
                     <span className="text-sm">進捗ボードに表示</span>
                   </label>
@@ -242,10 +236,7 @@ export default function SettingsPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingId(null);
-                  }}
+                  onClick={() => { setShowForm(false); setEditingId(null); }}
                 >
                   キャンセル
                 </Button>
@@ -259,97 +250,89 @@ export default function SettingsPage() {
       )}
 
       {/* 指標一覧 */}
-      {loading ? (
-        <div className="text-center py-12 text-gray-400">読み込み中...</div>
-      ) : (
-        <div className="space-y-6">
-          {(["SALES_RESULT", "BEHAVIOR", "SKILL"] as MetricCategory[]).map((cat) => {
-            const items = grouped[cat];
-            if (!items?.length) return null;
-            return (
-              <div key={cat}>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  {METRIC_CATEGORY_LABELS[cat]}
-                </h2>
-                <div className="grid gap-3">
-                  {items.map((metric) => (
-                    <Card key={metric.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-gray-900">{metric.name}</span>
-                              {metric.unit && (
-                                <span className="text-xs text-gray-400">({metric.unit})</span>
-                              )}
-                              <Badge className={METRIC_CATEGORY_COLORS[metric.category]}>
-                                {METRIC_CATEGORY_LABELS[metric.category]}
-                              </Badge>
-                              <Badge variant="outline">
-                                {METRIC_TYPE_LABELS[metric.type]}
-                              </Badge>
-                            </div>
-                            {metric.description && (
-                              <p className="text-sm text-gray-500 mt-1">{metric.description}</p>
+      <div className="space-y-6">
+        {(["SALES_RESULT", "BEHAVIOR", "SKILL"] as MetricCategory[]).map((cat) => {
+          const items = grouped[cat];
+          if (!items?.length) return null;
+          return (
+            <div key={cat}>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                {METRIC_CATEGORY_LABELS[cat]}
+              </h2>
+              <div className="grid gap-3">
+                {items.map((metric) => (
+                  <Card key={metric.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-gray-900">{metric.name}</span>
+                            {metric.unit && (
+                              <span className="text-xs text-gray-400">({metric.unit})</span>
                             )}
-                            <div className="flex gap-2 mt-2">
-                              {metric.showInRadarChart && (
-                                <span className="text-xs flex items-center gap-1 text-purple-600">
-                                  <BarChart2 className="h-3 w-3" />レーダー
-                                </span>
-                              )}
-                              {metric.showInDashboard && (
-                                <span className="text-xs flex items-center gap-1 text-blue-600">
-                                  <Eye className="h-3 w-3" />ダッシュボード
-                                </span>
-                              )}
-                              {metric.showInProgressBoard && (
-                                <span className="text-xs flex items-center gap-1 text-green-600">
-                                  <TrendingUp className="h-3 w-3" />進捗ボード
-                                </span>
-                              )}
-                              {metric.targetValue && (
-                                <span className="text-xs text-gray-400">
-                                  目標: {metric.targetValue}{metric.unit}
-                                </span>
-                              )}
-                            </div>
+                            <Badge className={METRIC_CATEGORY_COLORS[metric.category]}>
+                              {METRIC_CATEGORY_LABELS[metric.category]}
+                            </Badge>
+                            <Badge variant="outline">
+                              {METRIC_TYPE_LABELS[metric.type]}
+                            </Badge>
                           </div>
-                          <div className="flex gap-2 shrink-0">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEdit(metric)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteMetric(metric.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          {metric.description && (
+                            <p className="text-sm text-gray-500 mt-1">{metric.description}</p>
+                          )}
+                          <div className="flex gap-3 mt-2">
+                            {metric.showInRadarChart && (
+                              <span className="text-xs flex items-center gap-1 text-purple-600">
+                                <BarChart2 className="h-3 w-3" />レーダー
+                              </span>
+                            )}
+                            {metric.showInDashboard && (
+                              <span className="text-xs flex items-center gap-1 text-blue-600">
+                                <Eye className="h-3 w-3" />ダッシュボード
+                              </span>
+                            )}
+                            {metric.showInProgressBoard && (
+                              <span className="text-xs flex items-center gap-1 text-green-600">
+                                <TrendingUp className="h-3 w-3" />進捗ボード
+                              </span>
+                            )}
+                            {metric.targetValue != null && (
+                              <span className="text-xs text-gray-400">
+                                目標: {metric.targetValue}{metric.unit}
+                              </span>
+                            )}
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        <div className="flex gap-2 shrink-0">
+                          <Button size="sm" variant="ghost" onClick={() => startEdit(metric)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDelete(metric.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            );
-          })}
-
-          {metrics.length === 0 && (
-            <div className="text-center py-16 text-gray-400">
-              <Settings className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>まだ指標が登録されていません</p>
-              <p className="text-sm mt-1">「新しい指標を追加」から始めましょう</p>
             </div>
-          )}
-        </div>
-      )}
+          );
+        })}
+
+        {metrics.length === 0 && (
+          <div className="text-center py-16 text-gray-400">
+            <Settings className="h-12 w-12 mx-auto mb-3 opacity-30" />
+            <p>まだ指標が登録されていません</p>
+            <p className="text-sm mt-1">「新しい指標を追加」から始めましょう</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
