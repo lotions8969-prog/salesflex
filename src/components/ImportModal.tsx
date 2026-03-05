@@ -25,12 +25,7 @@ import {
 } from "@/lib/importParser";
 import { listMetrics, upsertValues } from "@/lib/localStore";
 import { MetricDefinition } from "@/lib/types";
-
-const DEMO_USERS = [
-  { id: "user1", name: "田中 健太" },
-  { id: "user2", name: "佐藤 美咲" },
-  { id: "user3", name: "鈴木 大輝" },
-];
+import { USERS } from "@/lib/users";
 
 interface Props {
   onClose: () => void;
@@ -130,12 +125,17 @@ export default function ImportModal({ onClose, onImported }: Props) {
     const initMap: Record<string, string> = {};
     const uniqueOwners = [...new Set(agg.map((a) => a.ownerName))];
     uniqueOwners.forEach((name) => {
-      // 自動マッチング（姓が一致など）
-      const found = DEMO_USERS.find(
-        (u) =>
-          u.name.includes(name.split(/\s/)[0]) ||
-          name.includes(u.name.split(/\s/)[0])
-      );
+      // 自動マッチング（名前の一部が一致 or IDが名前に含まれる）
+      const nameLower = name.toLowerCase().replace(/\s/g, "");
+      const found = USERS.find((u) => {
+        const uLower = u.name.toLowerCase().replace(/\s/g, "");
+        return (
+          nameLower.includes(u.id) ||
+          u.id.includes(nameLower) ||
+          nameLower.includes(uLower) ||
+          uLower.includes(nameLower)
+        );
+      });
       initMap[name] = found?.id || "";
     });
     setOwnerMap(initMap);
@@ -443,7 +443,7 @@ export default function ImportModal({ onClose, onImported }: Props) {
                             className="text-sm w-36"
                           >
                             <option value="">スキップ</option>
-                            {DEMO_USERS.map((u) => (
+                            {USERS.map((u) => (
                               <option key={u.id} value={u.id}>{u.name}</option>
                             ))}
                           </Select>

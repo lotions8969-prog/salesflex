@@ -1,6 +1,7 @@
 "use client";
 
 import { MetricDefinition, MetricType, MetricCategory, MetricValue } from "./types";
+import { USERS } from "./users";
 
 // ===== MetricDefinitions =====
 
@@ -231,48 +232,68 @@ export function seedDemoDataIfEmpty() {
 
   const savedMetrics = demoMetrics.map((m) => createMetric(m));
 
-  // デモ値を入れる
-  const DEMO_USERS = ["user1", "user2", "user3"];
+  // デモ値を入れる（実際のメンバー名で）
   const period = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 
   const demoValues: Record<string, Array<{ numberValue?: number; ratingValue?: number }>> = {
-    user1: [
+    katagiri: [
+      { numberValue: 320 },
+      { numberValue: 45 },
+      { numberValue: 32 },
+      { ratingValue: 4 },
+      { ratingValue: 5 },
+      { ratingValue: 4 },
+      { ratingValue: 5 },
+      { ratingValue: 4 },
+    ],
+    kobayashi: [
       { numberValue: 245 },
       { numberValue: 38 },
       { numberValue: 28 },
-      { ratingValue: 4 },
-      { ratingValue: 4 },
-      { ratingValue: 3 },
       { ratingValue: 5 },
       { ratingValue: 4 },
+      { ratingValue: 3 },
+      { ratingValue: 4 },
+      { ratingValue: 3 },
     ],
-    user2: [
+    miyashita: [
       { numberValue: 180 },
       { numberValue: 52 },
       { numberValue: 22 },
+      { ratingValue: 4 },
+      { ratingValue: 3 },
       { ratingValue: 5 },
       { ratingValue: 3 },
-      { ratingValue: 4 },
-      { ratingValue: 4 },
-      { ratingValue: 3 },
+      { ratingValue: 5 },
     ],
-    user3: [
-      { numberValue: 320 },
-      { numberValue: 29 },
-      { numberValue: 35 },
+    okada: [
+      { numberValue: 210 },
+      { numberValue: 31 },
+      { numberValue: 25 },
       { ratingValue: 3 },
+      { ratingValue: 4 },
+      { ratingValue: 4 },
+      { ratingValue: 4 },
+      { ratingValue: 4 },
+    ],
+    okimoto: [
+      { numberValue: 290 },
+      { numberValue: 42 },
+      { numberValue: 30 },
+      { ratingValue: 4 },
+      { ratingValue: 4 },
       { ratingValue: 5 },
       { ratingValue: 5 },
-      { ratingValue: 3 },
       { ratingValue: 5 },
     ],
   };
 
-  for (const userId of DEMO_USERS) {
+  for (const user of USERS) {
+    const vals = demoValues[user.id] || [];
     const inputs = savedMetrics.map((m, i) => ({
       metricDefinitionId: m.id,
-      ...demoValues[userId][i],
+      ...(vals[i] || {}),
     }));
-    upsertValues(userId, period, inputs);
+    upsertValues(user.id, period, inputs);
   }
 }

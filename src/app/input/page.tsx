@@ -17,12 +17,7 @@ import {
 } from "@/lib/types";
 import { listMetrics, listValues, upsertValues, seedDemoDataIfEmpty } from "@/lib/localStore";
 import ImportModal from "@/components/ImportModal";
-
-const DEMO_USERS = [
-  { id: "user1", name: "田中 健太" },
-  { id: "user2", name: "佐藤 美咲" },
-  { id: "user3", name: "鈴木 大輝" },
-];
+import { USERS } from "@/lib/users";
 
 function getCurrentPeriod() {
   const now = new Date();
@@ -51,7 +46,7 @@ export default function InputPage() {
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState("");
   const [ratings, setRatings] = useState<Record<string, number>>({});
-  const [selectedUserId, setSelectedUserId] = useState(DEMO_USERS[0].id);
+  const [selectedUserId, setSelectedUserId] = useState(USERS[0].id);
   const [period, setPeriod] = useState(getCurrentPeriod());
   const [showImport, setShowImport] = useState(false);
 
@@ -173,7 +168,7 @@ export default function InputPage() {
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(e.target.value)}
                 >
-                  {DEMO_USERS.map((u) => (
+                  {USERS.map((u) => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </Select>

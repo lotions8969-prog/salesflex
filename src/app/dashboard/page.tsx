@@ -14,12 +14,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MetricDefinition, MetricValue } from "@/lib/types";
 import { listMetrics, listValues, seedDemoDataIfEmpty } from "@/lib/localStore";
-
-const DEMO_USERS = [
-  { id: "user1", name: "田中 健太" },
-  { id: "user2", name: "佐藤 美咲" },
-  { id: "user3", name: "鈴木 大輝" },
-];
+import { USERS } from "@/lib/users";
 
 function getCurrentPeriod() {
   const now = new Date();
@@ -50,7 +45,7 @@ function ProgressBar({ value, max, target }: { value: number; max: number; targe
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState<MetricDefinition[]>([]);
   const [metricValues, setMetricValues] = useState<MetricValue[]>([]);
-  const [selectedUser, setSelectedUser] = useState(DEMO_USERS[0]);
+  const [selectedUser, setSelectedUser] = useState(USERS[0]);
   const period = getCurrentPeriod();
 
   useEffect(() => {
@@ -90,7 +85,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <Users className="h-4 w-4 text-gray-400" />
           <div className="flex gap-2 flex-wrap">
-            {DEMO_USERS.map((user) => (
+            {USERS.map((user) => (
               <button
                 key={user.id}
                 onClick={() => setSelectedUser(user)}
